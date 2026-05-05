@@ -575,7 +575,8 @@
         
         function endDrag() {
             if (!dragStart || !ball.charging) return;
-            const power = ball.power / 4;
+            // MUCH stronger shots - easier to reach hoop
+            const power = ball.power / 1.5; // Was /4, now /1.5 = 2.6x more power!
             ball.vx = Math.cos(ball.aimAngle) * power;
             ball.vy = Math.sin(ball.aimAngle) * power;
             ball.bouncing = true;
@@ -600,24 +601,25 @@
         function setupLevel() {
             resetBall();
             
-            // Progressive difficulty
-            hoop.x = canvas.width - 120 - (level * 25);
-            hoop.y = 180 + Math.min(level * 15, 150) + Math.random() * 50;
+            // EASY: Hoop starts close and gets gradually harder
+            const baseDistance = Math.min(300 + (level * 30), canvas.width - 200);
+            hoop.x = canvas.width - baseDistance;
+            hoop.y = 250 + Math.sin(level) * 50; // Predictable height
             hoop.rimY = hoop.y;
             
-            // Moving hoop after level 3
-            hoop.moving = level > 3;
-            hoop.moveSpeed = 0.5 + (level - 3) * 0.2;
-            hoop.moveRange = 80 + (level - 3) * 10;
+            // Moving hoop only after level 8
+            hoop.moving = level > 8;
+            hoop.moveSpeed = 0.3;
+            hoop.moveRange = 50;
             hoop.moveCenter = hoop.y;
             
-            // Wind after level 5
-            if (level > 5) {
-                wind.strength = Math.random() * (level - 5) * 0.08;
-                wind.direction = Math.random() > 0.5 ? 1 : -1;
+            // Wind only after level 10
+            if (level > 10) {
+                wind.strength = 0.02;
+                wind.direction = level % 2 === 0 ? 1 : -1;
                 document.getElementById('windIndicator').classList.add('active');
                 document.getElementById('windArrow').style.transform = `scaleX(${wind.direction})`;
-                document.getElementById('windText').textContent = Math.round(wind.strength * 100);
+                document.getElementById('windText').textContent = 'LOW';
             } else {
                 wind.strength = 0;
                 document.getElementById('windIndicator').classList.remove('active');
@@ -899,19 +901,30 @@
             ctx.stroke();
             ctx.setLineDash([]);
             
-            // Trajectory preview
-            ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
-            ctx.lineWidth = 3;
+            // ACCURATE trajectory preview (matches actual physics)
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+            ctx.lineWidth = 4;
             ctx.beginPath();
             let px = ball.x, py = ball.y;
-            let pvx = Math.cos(angle) * (ball.power / 4);
-            let pvy = Math.sin(angle) * (ball.power / 4);
+            let pvx = Math.cos(angle) * (ball.power / 1.5); // MATCHES SHOOT POWER
+            let pvy = Math.sin(angle) * (ball.power / 1.5);
             ctx.moveTo(px, py);
-            for (let i = 0; i < 25; i++) {
-                px += pvx; py += pvy; pvy += ball.gravity;
+            for (let i = 0; i < 40; i++) {
+                px += pvx; 
+                py += pvy; 
+                pvy += ball.gravity;
+                pvx *= ball.friction;
+                pvy *= ball.friction;
                 ctx.lineTo(px, py);
+                
+                // Stop if hitting floor
+                if (py > canvas.height - 120) break;
             }
             ctx.stroke();
+            
+            // Target zone indicator
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+            ctx.fillRect(hoop.x, hoop.y - 20, hoop.width, 40);
         }
         
         function drawParticles() {
@@ -985,10 +998,10 @@
                 if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx *= -0.8; }
                 if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.vy *= -0.8; }
                 
-                // Scoring
+                // Scoring - VERY FORGIVING hit box
                 if (!ball.scored && ball.vy > 0 &&
-                    ball.x > hoop.x + 10 && ball.x < hoop.x + hoop.width - 10 &&
-                    ball.y > hoop.y && ball.y < hoop.y + 25) {
+                    ball.x > hoop.x - 10 && ball.x < hoop.x + hoop.width + 10 && // Wider
+                    ball.y > hoop.y - 20 && ball.y < hoop.y + 40) { // Taller area
                     
                     ball.scored = true;
                     nextLevel();
