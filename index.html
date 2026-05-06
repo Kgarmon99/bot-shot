@@ -601,29 +601,31 @@
         function setupLevel() {
             resetBall();
             
-            // EASY: Hoop starts close and gets gradually harder
-            const baseDistance = Math.min(300 + (level * 30), canvas.width - 200);
-            hoop.x = canvas.width - baseDistance;
-            hoop.y = 250 + Math.sin(level) * 50; // Predictable height
+            // SAFE: Ensure canvas dimensions are valid
+            const cw = canvas.width || 800;
+            const ch = canvas.height || 600;
+            
+            // EASY: Fixed positions that work on all screen sizes
+            // Level 1: 250px away, Level 2: 300px, etc.
+            const distance = 250 + ((level - 1) * 40);
+            hoop.x = Math.max(cw * 0.5, cw - distance);
+            hoop.x = Math.min(hoop.x, cw - 120); // Don't go off screen
+            
+            // Fixed heights that work
+            const heights = [280, 260, 300, 240, 320, 280, 260, 300, 240];
+            hoop.y = heights[(level - 1) % heights.length];
+            hoop.y = Math.max(180, Math.min(hoop.y, ch - 250)); // Keep in bounds
             hoop.rimY = hoop.y;
             
             // Moving hoop only after level 8
             hoop.moving = level > 8;
             hoop.moveSpeed = 0.3;
-            hoop.moveRange = 50;
+            hoop.moveRange = 40;
             hoop.moveCenter = hoop.y;
             
             // Wind only after level 10
-            if (level > 10) {
-                wind.strength = 0.02;
-                wind.direction = level % 2 === 0 ? 1 : -1;
-                document.getElementById('windIndicator').classList.add('active');
-                document.getElementById('windArrow').style.transform = `scaleX(${wind.direction})`;
-                document.getElementById('windText').textContent = 'LOW';
-            } else {
-                wind.strength = 0;
-                document.getElementById('windIndicator').classList.remove('active');
-            }
+            wind.strength = 0;
+            document.getElementById('windIndicator').classList.remove('active');
             
             shots = 5;
             updateHUD();
@@ -881,50 +883,32 @@
             
             const dx = dragStart.x - dragCurrent.x;
             const dy = dragStart.y - dragCurrent.y;
-            const dist = Math.hypot(dx, dy);
             const angle = Math.atan2(dy, dx);
             
-            // Power indicator circle
-            ctx.strokeStyle = `hsl(${120 - ball.power * 1.2}, 100%, 50%)`;
-            ctx.lineWidth = 4;
-            ctx.setLineDash([15, 10]);
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, Math.min(dist, 150), 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Aim line
+            // Simple aim line
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
             ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(ball.x, ball.y);
-            ctx.lineTo(ball.x + Math.cos(angle) * 120, ball.y + Math.sin(angle) * 120);
+            ctx.lineTo(ball.x + Math.cos(angle) * 100, ball.y + Math.sin(angle) * 100);
             ctx.stroke();
-            ctx.setLineDash([]);
             
-            // ACCURATE trajectory preview (matches actual physics)
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
+            // Simple trajectory dots
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.6)';
             let px = ball.x, py = ball.y;
-            let pvx = Math.cos(angle) * (ball.power / 1.5); // MATCHES SHOOT POWER
+            let pvx = Math.cos(angle) * (ball.power / 1.5);
             let pvy = Math.sin(angle) * (ball.power / 1.5);
-            ctx.moveTo(px, py);
-            for (let i = 0; i < 40; i++) {
+            
+            for (let i = 0; i < 20; i++) {
                 px += pvx; 
                 py += pvy; 
                 pvy += ball.gravity;
-                pvx *= ball.friction;
-                pvy *= ball.friction;
-                ctx.lineTo(px, py);
-                
-                // Stop if hitting floor
                 if (py > canvas.height - 120) break;
+                
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fill();
             }
-            ctx.stroke();
-            
-            // Target zone indicator
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-            ctx.fillRect(hoop.x, hoop.y - 20, hoop.width, 40);
         }
         
         function drawParticles() {
@@ -953,59 +937,56 @@
                 hoop.y = hoop.moveCenter + Math.sin(Date.now() * 0.002 * hoop.moveSpeed) * hoop.moveRange;
             }
             
-            if (ball.bouncing) {
-                // Wind effect
-                if (wind.strength > 0) {
-                    ball.vx += wind.strength * wind.direction;
-                }
+            if (!ball.bouncing) return;
+            
+            // Simple physics
+            ball.vy += ball.gravity;
+            ball.vx *= ball.friction;
+            ball.vy *= ball.friction;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+            ball.rotation += ball.vx * 0.1;
+            
+            // Trail
+            if (ball.trail.length < 15) {
+                ball.trail.push({ x: ball.x, y: ball.y });
+            } else {
+                ball.trail.shift();
+                ball.trail.push({ x: ball.x, y: ball.y });
+            }
+            
+            // Floor
+            const floor = canvas.height - 120;
+            if (ball.y + ball.radius > floor) {
+                ball.y = floor - ball.radius;
+                ball.vy *= -0.7;
+                ball.vx *= 0.85;
                 
-                // Physics
-                ball.vy += ball.gravity;
-                ball.vx *= ball.friction;
-                ball.vy *= ball.friction;
-                ball.x += ball.vx;
-                ball.y += ball.vy;
-                ball.rotation += ball.vx * 0.1;
-                
-                // Trail
-                if (Math.abs(ball.vx) > 1 || Math.abs(ball.vy) > 1) {
-                    ball.trail.push({ x: ball.x, y: ball.y });
-                    if (ball.trail.length > 15) ball.trail.shift();
-                }
-                
-                // Floor bounce
-                if (ball.y + ball.radius > canvas.height - 120) {
-                    ball.y = canvas.height - 120 - ball.radius;
-                    ball.vy *= -0.7;
-                    ball.vx *= 0.85;
+                if (Math.abs(ball.vy) < 1 && Math.abs(ball.vx) < 0.5) {
+                    ball.bouncing = false;
+                    shots--;
+                    streak = 0;
+                    updateHUD();
                     
-                    if (Math.abs(ball.vy) < 1.5 && Math.abs(ball.vx) < 0.5) {
-                        ball.bouncing = false;
-                        shots--;
-                        streak = 0;
-                        updateHUD();
-                        
-                        if (shots <= 0) {
-                            setTimeout(() => gameOver(score > 0), 800);
-                        } else {
-                            setTimeout(resetBall, 600);
-                        }
+                    if (shots <= 0) {
+                        setTimeout(() => gameOver(score > 0), 500);
+                    } else {
+                        setTimeout(resetBall, 500);
                     }
                 }
-                
-                // Walls
-                if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.vx *= -0.8; }
-                if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx *= -0.8; }
-                if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.vy *= -0.8; }
-                
-                // Scoring - VERY FORGIVING hit box
-                if (!ball.scored && ball.vy > 0 &&
-                    ball.x > hoop.x - 10 && ball.x < hoop.x + hoop.width + 10 && // Wider
-                    ball.y > hoop.y - 20 && ball.y < hoop.y + 40) { // Taller area
-                    
-                    ball.scored = true;
-                    nextLevel();
-                }
+            }
+            
+            // Walls
+            if (ball.x < ball.radius) { ball.x = ball.radius; ball.vx *= -0.8; }
+            if (ball.x > canvas.width - ball.radius) { ball.x = canvas.width - ball.radius; ball.vx *= -0.8; }
+            if (ball.y < ball.radius) { ball.y = ball.radius; ball.vy *= -0.8; }
+            
+            // Scoring
+            if (!ball.scored && ball.vy > 0 &&
+                ball.x > hoop.x && ball.x < hoop.x + hoop.width &&
+                ball.y > hoop.y && ball.y < hoop.y + 30) {
+                ball.scored = true;
+                nextLevel();
             }
         }
         
