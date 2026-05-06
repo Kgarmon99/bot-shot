@@ -564,30 +564,22 @@
         function setupLevel() {
             resetBall();
             
-            // SAFE: Ensure canvas dimensions are valid
             const cw = canvas.width || 800;
             const ch = canvas.height || 600;
             
-            // EASY: Fixed positions that work on all screen sizes
-            // Level 1: 250px away, Level 2: 300px, etc.
-            const distance = 250 + ((level - 1) * 40);
-            hoop.x = Math.max(cw * 0.5, cw - distance);
-            hoop.x = Math.min(hoop.x, cw - 120); // Don't go off screen
+            // SIMPLE: Hoop at fixed % from right side, moves slightly each level
+            const rightMargin = 100 + (level * 15); // 115px, 130px, 145px...
+            hoop.x = Math.min(cw - rightMargin, cw - 80);
+            hoop.x = Math.max(hoop.x, cw * 0.4); // Keep on right side
             
-            // Fixed heights that work
-            const heights = [280, 260, 300, 240, 320, 280, 260, 300, 240];
-            hoop.y = heights[(level - 1) % heights.length];
-            hoop.y = Math.max(180, Math.min(hoop.y, ch - 250)); // Keep in bounds
+            // Heights cycle through 3 positions
+            const heights = [280, 250, 310];
+            hoop.y = heights[(level - 1) % 3];
+            
             hoop.rimY = hoop.y;
-            
-            // Moving hoop only after level 8
-            hoop.moving = level > 8;
-            hoop.moveSpeed = 0.3;
-            hoop.moveRange = 40;
-            hoop.moveCenter = hoop.y;
-            
-            // Wind only after level 10
+            hoop.moving = false;
             wind.strength = 0;
+            
             document.getElementById('windIndicator').classList.remove('active');
             
             shots = 5;
