@@ -174,28 +174,7 @@
             transform: translateY(0) scale(0.98);
         }
         
-        .stats-row {
-            display: flex;
-            gap: 40px;
-            margin-top: 40px;
-        }
-        
-        .stat-box {
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 36px;
-            font-weight: 800;
-            color: #ffff00;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #8080a0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+
         
         /* HUD */
         .hud {
@@ -407,21 +386,9 @@
             <div class="title-logo">BOT SHOT</div>
             <div class="title-sub">Space Basketball</div>
             <button class="btn btn-primary" onclick="startGame()">PLAY</button>
-            
-            <div class="stats-row">
-                <div class="stat-box">
-                    <div class="stat-value" id="menuHighScore">0</div>
-                    <div class="stat-label">Best</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value" id="menuGames">0</div>
-                    <div class="stat-label">Games</div>
-                </div>
-            </div>
         </div>
         <div class="instructions">
-            <strong>DRAG</strong> to aim • <strong>PULL BACK</strong> for power<br>
-            Watch out for <strong>WIND</strong> and <strong>MOVING HOOPS</strong>!
+            Drag to aim • Pull back for power
         </div>
     </div>
     
@@ -474,10 +441,6 @@
         let streak = 0;
         let highScore = parseInt(localStorage.getItem('botshot_highscore')) || 0;
         let totalGames = parseInt(localStorage.getItem('botshot_games')) || 0;
-        
-        // Update menu stats
-        document.getElementById('menuHighScore').textContent = highScore;
-        document.getElementById('menuGames').textContent = totalGames;
         
         // Canvas sizing
         function resize() {
@@ -654,8 +617,6 @@
             document.getElementById('gameOverScreen').classList.remove('active');
             document.getElementById('titleScreen').classList.add('active');
             document.getElementById('hud').style.display = 'none';
-            document.getElementById('menuHighScore').textContent = highScore;
-            document.getElementById('menuGames').textContent = totalGames;
         }
         
         function gameOver(won) {
